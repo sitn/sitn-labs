@@ -13,6 +13,21 @@ import * as d3 from "d3";
 var parseTime = d3.timeParse("%d.%m.%Y")
 
 
+// EVENT LISTENERS
+
+// Listen for keyboard arrow key down events
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowUp') {
+        shiftProfile([0.0, 0.5])
+    } else if (e.key === 'ArrowDown') {
+        shiftProfile([0.0, -0.5])
+    } else if (e.key === 'ArrowLeft') {
+        shiftProfile([-0.5, 0.0])
+    } else if (e.key === 'ArrowRight') {
+        shiftProfile([0.5, 0.0])
+    }
+})
+
 // CHART
 class Chart {
 
@@ -51,6 +66,38 @@ class Chart {
         return y_extent
     }
 
+    get dataWidth() {
+        return this.xExtent[1] - this.xExtent[0]
+    }
+
+    get dataHeight() {
+        return this.yExtent[1] - this.yExtent[0]
+    }
+
+    get dataAspectRatio() {
+        return this.dataWidth / this.dataHeight
+    }
+
+    get chartAspectRatio() {
+        return this.innerWidth / this.innerHeight
+    }
+
+    get xExtentAdjust() {
+        if (this.dataAspectRatio <= this.chartAspectRatio) {
+            return [this.xExtent[0], this.chartAspectRatio * this.dataHeight + this.xExtent[0]]
+        } else {
+            return this.xExtent
+        }
+    }
+
+    get yExtentAdjust() {
+        if (this.dataAspectRatio > this.chartAspectRatio) {
+            return [this.yExtent[0], this.dataWidth / this.chartAspectRatio + this.yExtent[0]]
+        } else {
+            return this.yExtent
+        }
+    }
+
     get xRange() {
         return [this.margins.left, this.width - this.margins.right]
     }
@@ -60,9 +107,7 @@ class Chart {
     }
 
     get xScale() {
-        // scaleLinear(domain, range)
-        // return d3.scaleLinear(this.xExtent, [0, 1])// .nice()
-        return d3.scaleLinear(this.xExtent, this.xRange)// .nice()
+        return d3.scaleLinear(this.xExtentAdjust, this.xRange) // .nice()
     }
 
     get yScale() {
@@ -71,19 +116,9 @@ class Chart {
         const xStep = Math.abs((this.xExtent[1] - this.xExtent[0]) / (this.xRange[1] - this.xRange[0]))
         const yStep = Math.abs((this.yExtent[1] - this.yExtent[0]) / (this.yRange[1] - this.yRange[0]))
 
-
         const ratio = yStep / xStep
-
-        // console.log(`xRange: ${this.xRange}`)
-        // console.log(`yRange: ${this.yRange}`)
-        // console.log(`xStep: ${xStep}`)
-        // console.log(`yStep: ${yStep}`)
-
         const yRangeAdj = [this.yRange[0], this.yRange[0] - (this.yExtent[1] - this.yExtent[0]) / xStep]
-
-        // return d3.scaleLinear(this.yExtent, [0, 1])
-        return d3.scaleLinear(this.yExtent, this.yRange) // .nice()
-        // return d3.scaleLinear(this.yExtent, yRangeAdj) // .nice()
+        return d3.scaleLinear(this.yExtentAdjust, this.yRange) // .nice()
     }
 
     get xAxis() {
@@ -192,6 +227,13 @@ class Chart {
         console.log(`innerWidth: ${this.innerWidth}, innerHeight: ${this.innerHeight}`)
         console.log(`xRange: ${this.xRange}`)
         console.log(`yRange: ${this.yRange}`)
+        console.log(`xExtent: ${this.xExtent}`)
+        console.log(`yExtent: ${this.yExtent}`)
+        console.log(`xExtentAdjust: ${this.xExtentAdjust}`)
+        console.log(`yExtentAdjust: ${this.yExtentAdjust}`)
+
+        console.log(`dataAspectRatio: ${this.dataAspectRatio}`)
+        console.log(`chartAspectRatio: ${this.chartAspectRatio}`)
 
         // adjust yRange to control x/y axis aspect ratio
 
@@ -221,7 +263,6 @@ window.addEventListener('resize', function () {
 
 
 /* GEOTIFF SOURCE */
-
 const source = new GeoTIFF({
     normalize: false,
     interpolate: false,
@@ -275,19 +316,16 @@ var layerIndex = 0
 
 //console.log(`layerIndex: ${layerIndex}`)
 
+/* UPDATE LAYER */
 function update() {
-    // var x = document.getElementById("layer-selector").value;
     layerIndex = parseInt(document.getElementById("layer-selector").value)
-    // displayPixelValue()
-
     raster.updateStyleVariables({ bandno: layerIndex + 1 })
-
-    // console.log({ bandno: parseInt(x) + 1 })
 }
+
 
 var select = document.getElementById("layer-selector")
 
-// layer selector event listener
+// LAYER SELECTOR EVENT LISTENER
 select.addEventListener('change', update)
 
 source.sourceInfo_.forEach((element, index) => {
@@ -362,11 +400,11 @@ const map = new Map({
 
 
 /* INTERACTIONS */
-const modify = new Modify({ source: vsource })
-map.addInteraction(modify)
 
-let draw, snap; // global so we can remove them later
-// const typeSelect = document.getElementById('type');
+// const modify = new Modify({ source: vsource })
+// map.addInteraction(modify)
+
+let draw, snap;
 
 function addInteractions() {
     draw = new Draw({
@@ -381,7 +419,7 @@ function addInteractions() {
         vsource.clear()
 
     })
-    draw.on(['drawend'], e => drawProfile(e))
+    draw.on(['drawend'], e => drawProfile(e.feature))
 
     map.addInteraction(draw)
     snap = new Snap({ source: vsource })
@@ -459,14 +497,14 @@ function getValuesAtCoordinates(coordinates) {
 
 }
 
-function drawProfile(event) {
+function drawProfile(feature) {
 
     // get curvilinear coordinates from cartesian coordinates
-    console.log('drawend')
-    console.log(event)
+    // console.log('drawend')
+    // console.log(event)
 
-    let currentFeature = event.feature
-    let geom = currentFeature.getGeometry()
+    // let currentFeature = event.feature
+    let geom = feature.getGeometry()
 
     let xy_i = interpolateLinestring(geom)
     console.log('xy_i')
@@ -513,7 +551,6 @@ function drawProfile(event) {
 
 function getPixelValue(event) {
 
-
     //console.log(event)
 
     //console.log('event.pixel')
@@ -522,10 +559,9 @@ function getPixelValue(event) {
     //console.log(data)
     //console.log(event.coordinate)
 
-    let cr_center = map.getPixelFromCoordinate(event.coordinate)
+    // let cr_center = map.getPixelFromCoordinate(event.coordinate)
     //console.log(map.getEventCoordinate(event))
     //console.log(map.getEventPixel(event))
-
 
     // getCoordinateFromPixel(pixel)
     // console.log(event.pixel_)
