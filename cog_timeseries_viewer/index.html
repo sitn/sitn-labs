@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Hauteur de canopée [m]</title>
+    <link rel="stylesheet" href="node_modules/ol/ol.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="grid-container">
+        <div class="grid-cell">
+            <div id="map" class="map">
+
+                <select id="layer-selector"></select>
+
+                <div id="indicator"></div>
+
+                <svg id="crosshair" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <text id="height-indicator" x="50%" y="20%" dominant-baseline="middle" text-anchor="middle" class="name-text">24.0</text>
+                    <!-- font-size="27pt" fill="black" stroke="white" stroke-width="0.5"  -->
+                    <circle cx="50" cy="50" r="14" stroke="#ad09f6" stroke-width="2" fill="none" />
+                    <circle cx="50" cy="50" r="2" stroke="red" stroke-width="0" fill="red" />
+                </svg>
+
+                <!--                 <div id="crosshair">
+                    <svg id="crosshair-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                        <text id="height-indicator-svg" x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="30pt" class="">My</text>
+                        <circle cx="50" cy="50" r="24" stroke="red" stroke-width="5" fill="none" />
+                        <circle cx="50" cy="50" r="5" stroke="red" stroke-width="0" fill="red" />
+                    </svg>
+                </div> -->
+                <!-- <div id='crosshair'>+</div> -->
+            </div>
+
+
+
+        </div>
+        <div class="grid-cell">
+
+            <div id="chart" class="chart">
+                <!--            <div>
+                    <label for="cars">Donnée</label>
+
+                    <select name="layers" id="layer-selector"></select>
+                </div> -->
+
+                <!-- <div>Z: <span id="output"></span></div> -->
+                <svg id="svg-chart">
+
+                    <!-- X-AXIS -->
+                    <g id="svg-x-axis" transform="translate(0, 320)" fill="none" font-size="10" font-family="sans-serif" text-anchor="middle">
+                        <text id="svg-x-label" x="335" y="40" fill="currentColor" text-anchor="middle">Date</text>
+                    </g>
+
+                    <!-- Y-AXIS -->
+                    <g id="svg-y-axis" transform="translate(60, 0)" fill="none" font-size="10" font-family="sans-serif" text-anchor="end">
+                        <text id="svg-y-label" x="-175" y="-40" transform="rotate(-90)" fill="currentColor" text-anchor="middle">Hauteur [m]</text>
+                    </g>
+
+                    <!-- X-AXIS GRID -->
+                    <g id="svg-x-grid" class="x axis-grid" stroke-width="1" stroke="#ddeeff" fill="none" stroke-opacity="0.1" transform="translate(0, 320)" font-size="10" font-family="sans-serif" text-anchor="middle">
+                    </g>
+
+                    <!-- Y-AXIS GRID -->
+                    <g id="svg-y-grid" class="y axis-grid" stroke-width="1" stroke="#ddeeff" fill="none" stroke-opacity="0.1" transform="translate(60, 0)" font-size="10" font-family="sans-serif" text-anchor="end">
+                    </g>
+
+                    <!-- MARKER -->
+                    <defs>
+                        <marker id="dot" refX="10" refY="10" markerWidth="15" markerHeight="15">
+                            <circle cx="10" cy="10" r="1.5" fill="black">
+                            </circle>
+                        </marker>
+                    </defs>
+
+                    <!-- DATE LINE -->
+                    <line id="svg-timeline" x1="160" y1="0" x2="160" y2="250" stroke="black" stroke-dasharray="0 4 0" visibility="hidden" />
+
+                    <!-- DATA CURVE -->
+                    <path id="svg-dataline" class="line" transform="" d="" marker-start="url(#dot)" marker-mid="url(#dot)" marker-end="url(#dot)" style="fill: none; stroke: rgb(204, 0, 0); stroke-width: 2;"></path>
+
+                </svg>
+            </div>
+        </div>
+    </div>
+
+
+    <script type="module" src="main.js"></script>
+</body>
+
+</html>
