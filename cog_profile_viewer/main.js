@@ -10,7 +10,12 @@ import { Vector as VectorLayer } from 'ol/layer.js';
 import TileLayer from 'ol/layer/WebGLTile.js';
 import * as d3 from "d3";
 
-var parseTime = d3.timeParse("%d.%m.%Y")
+// https://xoor.io/blog/mastering-d3-js-part-1-using-canvas-to-better-scale-charts
+// https://qmachard.github.io/d3js-examples/examples/multiseries-line.html
+// https://stackoverflow.com/questions/41591430/d3-multi-series-line-chart-with-zoom
+// https://www.datamake.io/blog/d3-zoom
+// https://xoor-io.github.io/d3-canvas-example/02_scatterplot_with_zoom/index.html
+
 
 
 // EVENT LISTENERS
@@ -36,6 +41,11 @@ class Chart {
         this.width = width
         this.margins = margins
         this.data = data
+        this.bbox = { xmin: 0, xmax: 100, ymin: 0, ymax: 100 }
+    }
+
+    get filteredData() {
+        return this.data.filter(x => (x[0] >= this.bbox.xmin) & (x[0] <= this.bbox.xmax) & (x[1] >= this.bbox.ymin) & (x[1] <= this.bbox.ymax))
     }
 
     get timeLine() {
@@ -55,14 +65,33 @@ class Chart {
     }
 
     get xExtent() {
-        let x_extent = d3.extent(this.data, d => d[0])
+
+        /*
+        let x_data = this.data.map(x => x[0]).filter(x => (x >= 12.0) & (x <= 25))
+        let x_extent = d3.extent(x_data)
+        let x_extent2 = d3.extent(this.data, d => d[0])
+
+        console.log(this.data.map(x => x[0]))
+        console.log(x_data)
+
+        console.log(`x_extent: ${x_extent}`)
+        console.log(`x_extent2: ${x_extent2}`)
+        */
+
         // console.log('x_extent')
         // console.log(x_extent)
+
+        let x_extent = d3.extent(this.data, d => d[0])
+        // let x_extent = d3.extent(this.filteredData, d => d[0])
+        // let x_extent = [this.bbox.xmin, this.bbox.xmax]
         return x_extent
     }
 
     get yExtent() {
-        let y_extent = d3.extent(this.data, d => d[1]) // [0, 60] 
+
+        let y_extent = d3.extent(this.data, d => d[1])
+        // let y_extent = d3.extent(this.filteredData, d => d[1])
+        //let y_extent = [this.bbox.ymin, this.bbox.ymax]
         return y_extent
     }
 
@@ -110,19 +139,20 @@ class Chart {
         return d3.scaleLinear(this.xExtentAdjust, this.xRange) // .nice()
     }
 
+    set xScale(newXScale) {
+        this._name = newXScale
+    }
+
     get yScale() {
-        // scaleLinear(domain, range)
-
-        const xStep = Math.abs((this.xExtent[1] - this.xExtent[0]) / (this.xRange[1] - this.xRange[0]))
-        const yStep = Math.abs((this.yExtent[1] - this.yExtent[0]) / (this.yRange[1] - this.yRange[0]))
-
-        const ratio = yStep / xStep
-        const yRangeAdj = [this.yRange[0], this.yRange[0] - (this.yExtent[1] - this.yExtent[0]) / xStep]
+        // const xStep = Math.abs((this.xExtent[1] - this.xExtent[0]) / (this.xRange[1] - this.xRange[0]))
+        // const yStep = Math.abs((this.yExtent[1] - this.yExtent[0]) / (this.yRange[1] - this.yRange[0]))
+        // const ratio = yStep / xStep
+        // const yRangeAdj = [this.yRange[0], this.yRange[0] - (this.yExtent[1] - this.yExtent[0]) / xStep]
         return d3.scaleLinear(this.yExtentAdjust, this.yRange) // .nice()
     }
 
     get xAxis() {
-        return d3.axisBottom(this.xScale).ticks(this.width / 100) // .tickSizeOuter(0) d3.time.format("%b %Y") d3.format("d")
+        return d3.axisBottom(this.xScale).ticks(this.width / 100) // .tickSizeOuter(0)
     }
 
     get yAxis() {
@@ -138,13 +168,12 @@ class Chart {
     }
 
     get line() {
-        // this.line = d3.line()
         return d3.line()
             .x(d => this.xScale(d[0]))
             .y(d => this.yScale(d[1]))
     }
 
-
+    // UPDATE VIEWBOX
     updateViewbox() {
         d3.select('#svg-chart')
             .attr("width", '100%') // .attr("width", this.width) 
@@ -152,6 +181,15 @@ class Chart {
             .attr("viewBox", `0,0,${this.width},${this.height}`)
     }
 
+    updateClipPath() {
+        d3.select('#clipRegion')
+            .attr("x", this.margins.left)
+            .attr("y", 0.0)
+            .attr("width", this.innerWidth)
+            .attr("height", this.innerHeight)
+    }
+
+    // UPDATE X-AXIS
     updateXAxis() {
         d3.select('#svg-x-axis')
             .attr("transform", `translate(0, ${this.height - this.margins.bottom})`)
@@ -159,6 +197,7 @@ class Chart {
             .call(this.xAxis)
     }
 
+    // UPDATE Y-AXIS
     updateYAxis() {
         d3.select('#svg-y-axis')
             .attr("transform", `translate(${this.margins.left}, 0)`)
@@ -166,12 +205,14 @@ class Chart {
             .call(this.yAxis)
     }
 
+    // UPDATE X-AXIS GRID
     updateXAxisGrid() {
         d3.select('#svg-x-grid')
             .attr("transform", `translate(${0}, ${this.height - this.margins.bottom})`)
             .call(this.xAxisGrid)
     }
 
+    // UPDATE Y-AXIS GRID
     updateYAxisGrid() {
         d3.select('#svg-y-grid')
             .attr("transform", `translate(${this.margins.left}, ${0})`)
@@ -195,28 +236,27 @@ class Chart {
             .attr("y", -50)
     }
 
+    // UPDATE LINE
     updateLine() {
         d3.select('#svg-dataline')
+            // .attr("d", this.line(this.filteredData))
             .attr("d", this.line(this.data))
     }
 
-    updateData(vals) {
-        this.data = vals.filter(x => !isNaN(x[1]))
+    // UPDATE SCALE
+    updateScale(transform) {
+
+        var newXScale = transform.rescaleX(this.xScale)
+        var newYScale = transform.rescaleY(this.yScale)
+
+        this.xAxis.call(d3.axisBottom(newXScale).ticks(this.width / 100))
+        // this.yAxis.call(d3.axisLeft(newYScale))
+
     }
 
-    updateTimeLine() {
-
-        if (this.data.length > 0) {
-
-            let gaga = this.xScale(this.data[layerIndex][0])
-
-            d3.select('#svg-timeline')
-                .attr("x1", gaga)
-                .attr("x2", gaga)
-                .attr("visibility", "visible")
-
-        }
-
+    // UPDATE DATA
+    updateData(vals) {
+        this.data = vals.filter(x => !isNaN(x[1]))
     }
 
     updatePlot() {
@@ -231,15 +271,11 @@ class Chart {
         console.log(`yExtent: ${this.yExtent}`)
         console.log(`xExtentAdjust: ${this.xExtentAdjust}`)
         console.log(`yExtentAdjust: ${this.yExtentAdjust}`)
-
         console.log(`dataAspectRatio: ${this.dataAspectRatio}`)
         console.log(`chartAspectRatio: ${this.chartAspectRatio}`)
 
-        // adjust yRange to control x/y axis aspect ratio
-
-        // this.height = this.width
-
         this.updateViewbox()
+        this.updateClipPath()
         this.updateXAxis()
         this.updateYAxis()
         this.updateXAxisGrid()
@@ -247,22 +283,163 @@ class Chart {
         this.updateXAxisLabel()
         this.updateYAxisLabel()
         this.updateLine()
-        // this.updateTimeLine()
+
     }
+
+}
+
+/* INITIALIZE PROFILE CHART */
+// height, width, margins, data
+var profile = new Chart(300, 650, { left: 85, right: 60, top: 0, bottom: 0 }, [])
+profile.updatePlot()
+
+
+let zoom = d3.zoom()
+    .on('zoom', handleZoom)
+
+/*
+.scaleExtent([0.5, 10])
+.extent([[0, 0], [profile.innerWidth, profile.innerHeight]])
+.on('zoom', handleZoom)
+*/
+
+function handleZoom(e) {
+
+    // profile.updateScale(e.transform)
+
+    /*
+    var newXScale = e.transform.rescaleX(profile.xScale)
+    var newYScale = e.transform.rescaleY(profile.yScale)
+
+    profile.xAxis.call(d3.axisBottom(newXScale).ticks(profile.width / 100))
+    profile.yAxis.call(d3.axisLeft(newYScale))
+    */
+
+    /*
+    // recover the new scale
+    var newX = event.transform.rescaleX(profile.xScale);
+    var newY = event.transform.rescaleY(profile.yScale);
+
+    // update axes with these new boundaries
+    profile.xAxis.call(d3.axisBottom(newX))
+    profile.yAxis.call(d3.axisLeft(newY))
+    */
+
+    // update X scale
+
+    // update Y scale
+
+    //x2 = e.transform.rescaleX(chart.xAxis); 
+    // xAxisG.call(xAxis.scale(x2));
+    // path.attr("d", line);
+
+    /*
+    d3.selectAll('svg g')
+        .attr('transform', e.transform)
+
+    d3.select('svg #svg-dataline')
+        .attr('transform', e.transform)
+    */
+
+    let tr = e.transform
+    console.log(`transform`)
+    console.log(tr)
+
+    // new x and y scales
+    const newScaleX = tr.rescaleX(profile.xScale)
+    const newScaleY = tr.rescaleY(profile.yScale)
+
+    /*
+    profile.xScale = newScaleX
+    profile.yScale = newScaleY
+    profile.updateLine()
+    */
+    console.log('newScaleX.domain()')
+    console.log(newScaleX.domain())
+
+    console.log('newScaleY.domain()')
+    console.log(newScaleY.domain())
+
+    const newXDomain = newScaleX.domain()
+    const newYDomain = newScaleY.domain()
+
+    profile.bbox = { xmin: newXDomain[0], xmax: newXDomain[1], ymin: newYDomain[0], ymax: newYDomain[1] }
+
+    console.log(profile.filteredData)
+
+    // profile.updateLine()
+
+    profile.updatePlot()
+
+    // rescale x and y axes using the current zoom transform
+    d3.select('svg').select('#svg-x-axis').call(profile.xAxis.scale(newScaleX))
+    d3.select('svg').select('#svg-y-axis').call(profile.yAxis.scale(newScaleY))
+
+    // rescale line
+    var line2 = d3.line()
+        .x(d => newScaleX(d[0]))
+        .y(d => newScaleY(d[1]))
+
+    console.log(`d3.select('#svg-dataline')`)
+    console.log(d3.select('#svg-dataline'))
+
+    d3.select('#svg-dataline')
+        .attr("d", line2(profile.data))
+
+
+
+    // zoom.scaleTo(d3.select('svg'), 2)
+    // call(zoom).call(zoom.scaleTo, 0, 7)
+
+    // d3.select('svg').select('#svg-dataline').call(zoom.transform, d3.zoomIdentity)
+
+    // Geometric zoom (this does not re-render the line)
+    // d3.select('svg').select('#svg-dataline').attr("transform", tr)
+    // console.log(d3.select('svg').select('#svg-dataline').attr("d"))
+
+    /*
+    d3.select('svg').select('#svg-dataline')
+        .attr("d",
+            d3.line()
+                .x(d => newScaleX(d[0]))
+                .y(d => newScaleY(d[1]))
+        )
+    */
+
+
+    /*
+    d3.line()
+    .x(d => this.xScale(d[0]))
+    .y(d => this.yScale(d[1]))
+*/
+
+    // profile.updateLine()
+    // profile.updatePlot()
+
+    // d3.select('svg').select('#svg-x-grid').call(profile.xAxis.scale(newScaleY))
+    // d3.select('svg').select('#svg-y-grid').call(profile.yAxis.scale(newScaleY))
 
 
 }
 
-// height, width, margins, data
-var didi = new Chart(300, 650, { left: 85, right: 60, top: 0, bottom: 0 }, [])
-didi.updatePlot()
+function initZoom() {
+    d3.select('svg')
+        .call(zoom)
+}
+
+function resetZoom() {
+    svg.transition()
+        .duration(750)
+        .call(zoom.transform, d3.zoomIdentity);
+}
+
+initZoom()
 
 window.addEventListener('resize', function () {
-    didi.updatePlot()
+    profile.updatePlot()
 })
 
-
-/* GEOTIFF SOURCE */
+/* MAP GEOTIFF SOURCE */
 const source = new GeoTIFF({
     normalize: false,
     interpolate: false,
@@ -307,21 +484,20 @@ const source = new GeoTIFF({
     ],
 })
 
-//console.log(source)
-//console.log(source.sourceInfo_)
-//console.log(source.sources)
-//console.log(source.getProperties())
-
 var layerIndex = 0
 
-//console.log(`layerIndex: ${layerIndex}`)
-
-/* UPDATE LAYER */
+/* UPDATE MAP AND PROFILE DISPLAY */
 function update() {
-    layerIndex = parseInt(document.getElementById("layer-selector").value)
-    raster.updateStyleVariables({ bandno: layerIndex + 1 })
-}
 
+    layerIndex = parseInt(document.getElementById("layer-selector").value)
+
+    // update raster layer
+    raster.updateStyleVariables({ bandno: layerIndex + 1 })
+
+    // update profile layer
+    shiftProfile()
+    // drawProfile(feature)
+}
 
 var select = document.getElementById("layer-selector")
 
@@ -334,7 +510,6 @@ source.sourceInfo_.forEach((element, index) => {
     option.value = index
     select.add(option)
 })
-
 
 /* VECTOR LAYER */
 const vsource = new VectorSource()
@@ -399,7 +574,7 @@ const map = new Map({
 })
 
 
-/* INTERACTIONS */
+/* MAP INTERACTIONS */
 
 // const modify = new Modify({ source: vsource })
 // map.addInteraction(modify)
@@ -427,6 +602,28 @@ function addInteractions() {
 }
 
 addInteractions()
+
+
+// MODIFY FEATURE GEOMETRY
+function shiftProfile(shift = [0.0, 0.0]) {
+
+    let featureList = vsource.getFeatures()
+
+    if (featureList.length > 0) {
+
+        let feature = featureList[0]
+        let geom = feature.getGeometry()
+        let coords = geom.getCoordinates()
+
+        // add offset to coordinates
+        geom.setCoordinates(coords.map(x => [x[0] + shift[0], x[1] + shift[1]]))
+
+        // render profile
+        drawProfile(feature)
+
+    }
+
+}
 
 function getLinearCoordinates(xy) {
 
@@ -497,7 +694,7 @@ function getValuesAtCoordinates(coordinates) {
 
 }
 
-function drawProfile(feature) {
+function drawProfile(feature, shift = [0.0, 0.0]) {
 
     // get curvilinear coordinates from cartesian coordinates
     // console.log('drawend')
@@ -543,93 +740,7 @@ function drawProfile(feature) {
     // [d, z] = source.sourceInfo_.map((x, i) => [parseTime(x.date), data[i]])
     // console.log(rawdata[layerIndex])
 
-    didi.updateData(rawdata)
-    didi.updatePlot()
+    profile.updateData(rawdata)
+    profile.updatePlot()
 
 }
-
-
-function getPixelValue(event) {
-
-    //console.log(event)
-
-    //console.log('event.pixel')
-    //console.log(event.pixel)
-    const data = raster.getData(event.pixel)
-    //console.log(data)
-    //console.log(event.coordinate)
-
-    // let cr_center = map.getPixelFromCoordinate(event.coordinate)
-    //console.log(map.getEventCoordinate(event))
-    //console.log(map.getEventPixel(event))
-
-    // getCoordinateFromPixel(pixel)
-    // console.log(event.pixel_)
-
-    //console.log(cr_center)
-
-    //console.log('values:')
-
-    let n = 12000
-    let col = Array(n)
-    let row = Array(n)
-    let val = Array(n)
-
-    for (let i = 0; i < n; i++) {
-        col[i] = 328
-        row[i] = 250
-        val[i] = raster.getData([col[i], row[i]])[0]
-    }
-
-    //console.log(val)
-    // 388-160 - 615-324
-
-    //console.log(raster.getData(cr_center))
-    // getPixelFromCoordinate
-    // getCoordinateFromPixel(pixel)
-
-    if (!data) {
-        return
-    }
-
-}
-
-
-// const output = document.getElementById('output')
-
-// DISPLAY PIXEL VALUE AND UPDATE CHART
-function displayPixelValue() {
-    // function displayPixelValue(event) {
-
-    let xy_center = map.getView().getCenter()
-    let cr_center = map.getPixelFromCoordinate(xy_center)
-
-    console.log(xy_center)
-    console.log(cr_center)
-    // console.log(event.pixel)
-
-    // const data = layer.getData(event.pixel)
-    const data = raster.getData(cr_center)
-    // console.log(data)
-    if (!data) {
-        return
-    }
-
-    // document.getElementById("height-indicator").textContent = data[layerIndex].toFixed(1)
-
-    // update chart data
-    let rawdata = source.sourceInfo_.map((x, i) => [parseTime(x.date), data[i]])
-    console.log(rawdata[layerIndex])
-
-    didi.updateData(rawdata)
-    didi.updatePlot()
-
-}
-
-// map.on(['pointerdrag'], displayPixelValue) // 'pointermove', 'click', 'moveend'
-// map.on(['click'], getPixelValue)
-
-/* map.getView().on('change:resolution', (event) => {
-    console.log(event)
-})
- */

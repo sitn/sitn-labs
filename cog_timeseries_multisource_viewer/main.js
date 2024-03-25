@@ -189,20 +189,44 @@ window.addEventListener('resize', function () {
 })
 
 // https://gis.stackexchange.com/questions/450725/render-multiple-cog-files-using-openlayers
-const source = new GeoTIFF({
+const sources = [
+    new GeoTIFF({
+        normalize: false,
+        interpolate: false,
+        sources: [{
+            name: 'DHM 2001',
+            date: "01.06.2001",
+            url: 'https://sitn.ne.ch/lidar/pointclouds/mnc/mnc2001_1m_cog.tif',
+            bands: [1],
+        }]
+    }),
+    new GeoTIFF({
+        normalize: false,
+        interpolate: false,
+        sources: [{
+            name: 'DHM 2010',
+            date: "15.06.2010",
+            url: 'https://sitn.ne.ch/lidar/pointclouds/mnc/mnc2010_1m_cog.tif',
+            bands: [1],
+        }]
+    }),
+]
+
+/*
+const source11 = new GeoTIFF({
     normalize: false,
     interpolate: false,
     sources: [
         {
             name: 'DHM 2001',
             date: "01.06.2001",
-            url: 'data/dhm_2001.cog.tif', // 'https://sitn.ne.ch/lidar/pointclouds/mnc/mnc2001_1m_cog.tif',
+            url: 'data/dhm_2001.cog.tif',
             bands: [1]
         },
         {
             name: 'DHM 2010',
             date: "15.06.2010",
-            url: 'data/dhm_2010.cog.tif', // 'https://sitn.ne.ch/lidar/pointclouds/mnc/mnc2010_1m_cog.tif',
+            url: 'data/dhm_2010.cog.tif',
             bands: [1]
         },
 
@@ -234,8 +258,9 @@ const source = new GeoTIFF({
 
     ],
 })
+*/
 
-
+console.log(sources)
 
 var layerIndex = 0
 
@@ -252,15 +277,29 @@ select.addEventListener(
     update
 )
 
+
+sources.forEach((element, index) => {
+    console.log(element)
+    console.log(element.sourceInfo_[0].name)
+    console.log(index)
+    var option = document.createElement("option")
+    option.text = element.sourceInfo_[0].name
+    option.value = index
+    select.add(option)
+})
+
+
+/*
 source.sourceInfo_.forEach((element, index) => {
     var option = document.createElement("option")
     option.text = element.name
     option.value = index
     select.add(option)
 })
+*/
 
 const layer = new TileLayer({
-    source: source,
+    source: sources,
     style: {
 
         /*
@@ -286,6 +325,7 @@ const layer = new TileLayer({
             ['#ffffff', '#ffe784', '#cef77b', '#8ccf63', '#217100', '#4a5500', '#39927b', '#104173', '#ff8e00', '#ff0000'],
         ],
         */
+
 
         variables: {
             bandno: parseInt(1),
@@ -320,6 +360,7 @@ const layer = new TileLayer({
 const mouseWheelZoom = new MouseWheelZoom
 mouseWheelZoom.setMouseAnchor(false)
 
+/*
 const map = new Map({
     target: 'map',
     layers: [layer],
@@ -328,6 +369,45 @@ const map = new Map({
             projection: options.projection,
             center: options.center,
             resolution: options.resolutions[options.zoom],
+        }
+    }),
+    interactions: [
+        new DragRotate,
+        new DoubleClickZoom,
+        new DragPan,
+        new PinchRotate,
+        new PinchZoom,
+        new KeyboardPan,
+        new KeyboardZoom,
+        new DragZoom,
+        mouseWheelZoom,
+    ],
+})
+*/
+
+
+const map = new Map({
+    target: 'map',
+    layers: [layer],
+    view: Promise.all(
+        sources.map(function (source) {
+            return source.getView()
+        }),
+    ).then(function (options) {
+        const projection = options.projection // 'EPSG:3857';
+        const extent = createEmpty()
+        options.forEach(function (options) {
+            extend(
+                extent,
+                // transformExtent(options.extent, options.projection, projection),
+                transformExtent(options.extent, options.projection, options.projection),
+            )
+        })
+        return {
+            projection: projection,
+            center: getCenter(extent),
+            zoom: 0,
+            extent: extent,
         }
     }),
     interactions: [
@@ -373,10 +453,10 @@ function displayPixelValue() {
     document.getElementById("height-indicator").textContent = data[layerIndex].toFixed(1)
 
     // update chart data
-    let rawdata = source.sourceInfo_.map((x, i) => [parseTime(x.date), data[i]])
+    // let rawdata = sources.sourceInfo_.map((x, i) => [parseTime(x.date), data[i]])
 
-    lineplot.updateData(rawdata)
-    lineplot.updatePlot()
+    // lineplot.updateData(rawdata)
+    // lineplot.updatePlot()
 
 }
 

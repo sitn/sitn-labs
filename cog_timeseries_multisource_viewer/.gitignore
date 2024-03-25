@@ -1,0 +1,7 @@
+# Dependency directories
+.vite/
+.vscode/
+data
+dist
+doc
+node_modules
