@@ -5,19 +5,9 @@ import {
     defaults as defaultInteractions
 } from 'ol/interaction.js';
 import TileLayer from 'ol/layer/WebGLTile.js';
-import { createEmpty, extend, getCenter } from 'ol/extent.js';
 import * as d3 from "d3";
 
 var parseTime = d3.timeParse("%d.%m.%Y")
-
-/*
-proj4.defs(
-    'EPSG:2056',
-    '+proj=somerc +lat_0=46.95240555555556 +lon_0=7.439583333333333 +k_0=1 +x_0=2600000 +y_0=1200000 +ellps=bessel +towgs84=674.374,15.056,405.346,0,0,0,0 +units=m +no_defs',
-);
-
-register(proj4);
-*/
 
 // CHART
 class Chart {
@@ -159,7 +149,6 @@ class Chart {
                 .attr("x1", xcaling)
                 .attr("x2", xcaling)
                 .attr("visibility", "visible")
-
         }
     }
 
@@ -188,54 +177,127 @@ window.addEventListener('resize', function () {
     lineplot.updatePlot()
 })
 
-// https://gis.stackexchange.com/questions/450725/render-multiple-cog-files-using-openlayers
+
 const source = new GeoTIFF({
     normalize: false,
     interpolate: false,
     sources: [
         {
-            name: 'DHM 2001',
+            name: 'DHM 2001 (1m)',
             date: "01.06.2001",
-            url: 'data/dhm_2001.cog.tif', // 'https://sitn.ne.ch/lidar/pointclouds/mnc/mnc2001_1m_cog.tif',
+            url: 'https://sitn.ne.ch/lidar/pointclouds/mnc/mnc2001_1m_cog.tif',
             bands: [1]
         },
         {
-            name: 'DHM 2010',
+            name: 'DHM 2010 (1m)',
             date: "15.06.2010",
-            url: 'data/dhm_2010.cog.tif', // 'https://sitn.ne.ch/lidar/pointclouds/mnc/mnc2010_1m_cog.tif',
+            url: 'https://sitn.ne.ch/lidar/pointclouds/mnc/mnc2010_1m_cog.tif',
             bands: [1]
         },
-
         {
-            name: 'DHM 2016',
+            name: 'DHM 2016 (1m)',
             date: "01.05.2016",
-            url: 'data/dhm_2016.cog.tif',
+            url: 'https://sitn.ne.ch/lidar/pointclouds/mnc/mnc2016_1m_cog.tif',
             bands: [1]
         },
         {
-            name: 'DHM 2019',
+            name: 'DHM 2019 (1m)',
             date: "01.01.2019",
-            url: 'data/dhm_2019.cog.tif',
+            url: 'https://sitn.ne.ch/lidar/pointclouds/mnc/mnc2018_1m_cog.tif',
             bands: [1]
         },
-
         {
-            name: 'DHM 2022',
+            name: 'DHM 2022 (1m)',
             date: "01.01.2022",
-            url: 'data/dhm_2022.cog.tif',
+            url: 'https://sitn.ne.ch/lidar/pointclouds/mnc/mnc2022_1m_cog.tif',
+            bands: [1]
+        },
+        /*
+        {
+            name: 'DHM 2023 - Chaux-de-Fonds vol 1-2 (1m)',
+            date: "01.08.2023",
+            url: 'https://sitn.ne.ch/lidar/pointclouds/mnc/mnc2023_vol_12_1m_cog.tif',
+            bands: [1]
+        },
+        */
+        /*
+        {
+            name: 'DHM 2001 (1m)',
+            date: "01.06.2001",
+            url: 'https://sitn.ne.ch/lidar/pointclouds/mnc/dhm_2001.cog.tif',
             bands: [1]
         },
         {
-            name: 'DHM 2023',
-            date: "01.01.2023",
-            url: 'data/dhm_2023.cog.tif',
+            name: 'DHM 2010 (1m)',
+            date: "15.06.2010",
+            url: 'https://sitn.ne.ch/lidar/pointclouds/mnc/dhm_2010.cog.tif',
             bands: [1]
         },
-
+        {
+            name: 'DHM 2016 (1m)',
+            date: "01.05.2016",
+            url: 'https://sitn.ne.ch/lidar/pointclouds/mnc/dhm_2016.cog.tif',
+            bands: [1]
+        },
+        {
+            name: 'DHM 2019 (1m)',
+            date: "01.01.2019",
+            url: 'https://sitn.ne.ch/lidar/pointclouds/mnc/dhm_2019.cog.tif',
+            bands: [1]
+        },
+        {
+            name: 'DHM 2022 (1m)',
+            date: "01.01.2022",
+            url: 'https://sitn.ne.ch/lidar/pointclouds/mnc/dhm_2022.cog.tif',
+            bands: [1]
+        },
+        {
+            name: 'DHM 2023 - Chaux-de-Fonds vol 1-2 (1m)',
+            date: "01.08.2023",
+            url: 'https://sitn.ne.ch/lidar/pointclouds/mnc/dhm_2023.cog.tif',
+            bands: [1]
+        },
+        */
+        /*
+         {
+             name: 'DHM 2001 (1m)',
+             date: "01.06.2001",
+             url: 'data/dhm_2001.cog.tif',
+             bands: [1]
+         },
+         {
+             name: 'DHM 2010 (1m)',
+             date: "15.06.2010",
+             url: 'data/dhm_2010.cog.tif',
+             bands: [1]
+         },
+         {
+             name: 'DHM 2016 (1m)',
+             date: "01.05.2016",
+             url: 'data/dhm_2016.cog.tif',
+             bands: [1]
+         },
+         {
+             name: 'DHM 2019 (1m)',
+             date: "01.01.2019",
+             url: 'data/dhm_2019.cog.tif',
+             bands: [1]
+         },
+         {
+             name: 'DHM 2022 (1m)',
+             date: "01.01.2022",
+             url: 'data/dhm_2022.cog.tif',
+             bands: [1]
+         },
+         {
+             name: 'DHM 2023 - Chaux-de-Fonds vol 1-2 (1m)',
+             date: "01.08.2023",
+             url:  'data/dhm_2023.cog.tif',
+             bands: [1]
+         },
+         */
     ],
 })
-
-
 
 var layerIndex = 0
 
@@ -258,6 +320,22 @@ source.sourceInfo_.forEach((element, index) => {
     option.value = index
     select.add(option)
 })
+
+
+source.on(['tileloadend'],
+    function (e) {
+        // console.log('source.getTileGrid()')
+        // console.log(source.getTileGrid())
+        // console.log('source.getResolutions()')
+        // console.log(source.getResolutions())
+    }
+)
+
+// console.log('source')
+// console.log(source)
+
+// console.log('source.sourceInfo_')
+// console.log(source.sourceInfo_)
 
 const layer = new TileLayer({
     source: source,
@@ -316,6 +394,15 @@ const layer = new TileLayer({
         ],
     },
 })
+
+
+
+layer.on(['sourceready'],
+    function (e) {
+        // console.log('sourceready')
+        // console.log(layer.getKeys())
+    }
+)
 
 const mouseWheelZoom = new MouseWheelZoom
 mouseWheelZoom.setMouseAnchor(false)
