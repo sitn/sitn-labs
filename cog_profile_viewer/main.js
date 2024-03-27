@@ -2,34 +2,33 @@
 import Map from 'ol/Map.js';
 import GeoTIFF from 'ol/source/GeoTIFF.js';
 // import View from 'ol/View.js';
+import { Control, defaults as defaultControls } from 'ol/control.js';
+import {
+    DragRotate, DoubleClickZoom, DragPan, PinchRotate, PinchZoom, KeyboardPan, KeyboardZoom, MouseWheelZoom, DragZoom,
+    defaults as defaultInteractions
+} from 'ol/interaction.js';
 import { Draw, Modify, Snap } from 'ol/interaction.js';
 // import { Circle as CircleStyle, Fill, Stroke, Style } from 'ol/style.js';
-// import { LineString, Polygon } from 'ol/geom.js';
+import { LineString, Polygon, Point } from 'ol/geom.js';
 import { Vector as VectorSource } from 'ol/source.js';
 import { Vector as VectorLayer } from 'ol/layer.js';
+import Feature from 'ol/Feature.js';
 import TileLayer from 'ol/layer/WebGLTile.js';
+import GeoJSON from 'ol/format/GeoJSON.js';
 import * as d3 from "d3";
-
-// https://xoor.io/blog/mastering-d3-js-part-1-using-canvas-to-better-scale-charts
-// https://qmachard.github.io/d3js-examples/examples/multiseries-line.html
-// https://stackoverflow.com/questions/41591430/d3-multi-series-line-chart-with-zoom
-// https://www.datamake.io/blog/d3-zoom
-// https://xoor-io.github.io/d3-canvas-example/02_scatterplot_with_zoom/index.html
-
-
 
 // EVENT LISTENERS
 
 // Listen for keyboard arrow key down events
 document.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowUp') {
-        shiftProfile([0.0, 0.5])
+        translateProfile([0.0, 0.5])
     } else if (e.key === 'ArrowDown') {
-        shiftProfile([0.0, -0.5])
+        translateProfile([0.0, -0.5])
     } else if (e.key === 'ArrowLeft') {
-        shiftProfile([-0.5, 0.0])
+        translateProfile([-0.5, 0.0])
     } else if (e.key === 'ArrowRight') {
-        shiftProfile([0.5, 0.0])
+        translateProfile([0.5, 0.0])
     }
 })
 
@@ -48,8 +47,12 @@ class Chart {
         return this.data.filter(x => (x[0] >= this.bbox.xmin) & (x[0] <= this.bbox.xmax) & (x[1] >= this.bbox.ymin) & (x[1] <= this.bbox.ymax))
     }
 
-    get timeLine() {
-        layerIndex = parseInt(document.getElementById("layer-selector").value)
+    get zoomTransform() {
+
+        let selection = d3.select('#svg-body')
+        let transform = d3.zoomTransform(selection.node())
+        return transform
+
     }
 
     get maxHeight() {
@@ -136,19 +139,23 @@ class Chart {
     }
 
     get xScale() {
-        return d3.scaleLinear(this.xExtentAdjust, this.xRange) // .nice()
+        // return d3.scaleLinear(this.xExtentAdjust, this.xRange)
+        return this.zoomTransform.rescaleX(d3.scaleLinear(this.xExtentAdjust, this.xRange)).interpolate(d3.interpolateRound) // .nice()
     }
 
+    /*
     set xScale(newXScale) {
         this._name = newXScale
     }
+    */
 
     get yScale() {
         // const xStep = Math.abs((this.xExtent[1] - this.xExtent[0]) / (this.xRange[1] - this.xRange[0]))
         // const yStep = Math.abs((this.yExtent[1] - this.yExtent[0]) / (this.yRange[1] - this.yRange[0]))
         // const ratio = yStep / xStep
         // const yRangeAdj = [this.yRange[0], this.yRange[0] - (this.yExtent[1] - this.yExtent[0]) / xStep]
-        return d3.scaleLinear(this.yExtentAdjust, this.yRange) // .nice()
+        // return d3.scaleLinear(this.yExtentAdjust, this.yRange) // .nice()
+        return this.zoomTransform.rescaleY(d3.scaleLinear(this.yExtentAdjust, this.yRange)).interpolate(d3.interpolateRound) // .nice()
     }
 
     get xAxis() {
@@ -179,6 +186,14 @@ class Chart {
             .attr("width", '100%') // .attr("width", this.width) 
             .attr("height", '100%') // .attr("height", this.height)
             .attr("viewBox", `0,0,${this.width},${this.height}`)
+    }
+
+    updateBody() {
+        d3.select('#svg-body')
+            .attr("x", this.margins.left)
+            .attr("y", this.margins.top)
+            .attr("width", this.innerWidth)
+            .attr("height", this.innerHeight)
     }
 
     updateClipPath() {
@@ -244,15 +259,15 @@ class Chart {
     }
 
     // UPDATE SCALE
+    /*
     updateScale(transform) {
 
         var newXScale = transform.rescaleX(this.xScale)
         var newYScale = transform.rescaleY(this.yScale)
-
         this.xAxis.call(d3.axisBottom(newXScale).ticks(this.width / 100))
         // this.yAxis.call(d3.axisLeft(newYScale))
-
     }
+    */
 
     // UPDATE DATA
     updateData(vals) {
@@ -276,6 +291,7 @@ class Chart {
 
         this.updateViewbox()
         this.updateClipPath()
+        this.updateBody()
         this.updateXAxis()
         this.updateYAxis()
         this.updateXAxisGrid()
@@ -293,132 +309,104 @@ class Chart {
 var profile = new Chart(300, 650, { left: 85, right: 60, top: 0, bottom: 0 }, [])
 profile.updatePlot()
 
+// Handle click events on profile 
+d3.select('#svg-body')
+    .on('click', (event) => {
 
-let zoom = d3.zoom()
+        // Range space (SVG space) coordinates
+        let rangeCoords = d3.pointer(event)
+
+        // Domain space (data space) coordinates
+        let domainCoords = [profile.xScale.invert(rangeCoords[0]), profile.yScale.invert(rangeCoords[1])]
+
+        // Map space coordinates
+        // coords[i] = feature.getCoordinateAt(i * f)
+        let featureList = vsource.getFeatures()
+
+        console.log(featureList)
+
+        if (featureList.length > 0) {
+
+            let feature = featureList[0]
+            console.log(feature)
+
+            let geom = feature.getGeometry()
+            let L = geom.getLength()
+            let f = domainCoords[0] / L
+            // let coords = geom.getCoordinates()
+
+            console.log(geom)
+
+            // getCoordinateAt(fraction, dest)
+            let mapCoords = geom.getCoordinateAt(f)
+
+            // add point to map
+            let mapPoint = new Feature({
+                'geometry': new Point(mapCoords),
+                'i': 2,
+                'size': 20,
+                'Z': domainCoords[1],
+            })
+            // mapPoint.set('Z', domainCoords[1])
+            points.push(mapPoint)
+
+
+            var format = new GeoJSON({ dataProjection: 'EPSG:2056', featureProjection: 'EPSG:2056' })
+            var geoJsonStr = format.writeFeatures(points, { dataProjection: 'EPSG:2056', featureProjection: 'EPSG:2056', decimals: 2 })
+
+            console.log(points)
+            console.log(geoJsonStr)
+
+            pointsSource.clear()
+            pointsSource.addFeatures(points)
+
+            pointsLayer.setSource(pointsSource)
+
+            pointsLayer.changed()
+
+            console.log(`Range space: x=${rangeCoords[0]}, y=${rangeCoords[1]}`)
+            console.log(`Domain space: x=${domainCoords[0]}, y=${domainCoords[1]}`)
+            console.log(`Map space: x=${mapCoords[0]}, y=${mapCoords[1]}`)
+
+        }
+
+    })
+
+const zoom = d3.zoom()
+    .on("start",
+        (e) => {
+            d3.select('#svg-body')
+                .attr('cursor', 'move')
+        })
     .on('zoom', handleZoom)
+    .on("end", (e) => {
+        d3.select('#svg-body')
+            .attr('cursor', 'crosshair')
+    })
 
-/*
-.scaleExtent([0.5, 10])
-.extent([[0, 0], [profile.innerWidth, profile.innerHeight]])
-.on('zoom', handleZoom)
-*/
 
 function handleZoom(e) {
 
-    // profile.updateScale(e.transform)
+    console.log('zoomTransform:')
+    console.log(profile.zoomTransform)
 
-    /*
-    var newXScale = e.transform.rescaleX(profile.xScale)
-    var newYScale = e.transform.rescaleY(profile.yScale)
-
-    profile.xAxis.call(d3.axisBottom(newXScale).ticks(profile.width / 100))
-    profile.yAxis.call(d3.axisLeft(newYScale))
-    */
-
-    /*
-    // recover the new scale
-    var newX = event.transform.rescaleX(profile.xScale);
-    var newY = event.transform.rescaleY(profile.yScale);
-
-    // update axes with these new boundaries
-    profile.xAxis.call(d3.axisBottom(newX))
-    profile.yAxis.call(d3.axisLeft(newY))
-    */
-
-    // update X scale
-
-    // update Y scale
-
-    //x2 = e.transform.rescaleX(chart.xAxis); 
-    // xAxisG.call(xAxis.scale(x2));
-    // path.attr("d", line);
-
-    /*
-    d3.selectAll('svg g')
-        .attr('transform', e.transform)
-
-    d3.select('svg #svg-dataline')
-        .attr('transform', e.transform)
-    */
-
+    // get zoom transform
     let tr = e.transform
     console.log(`transform`)
     console.log(tr)
 
-    // new x and y scales
-    const newScaleX = tr.rescaleX(profile.xScale)
-    const newScaleY = tr.rescaleY(profile.yScale)
-
-    /*
-    profile.xScale = newScaleX
-    profile.yScale = newScaleY
-    profile.updateLine()
-    */
-    console.log('newScaleX.domain()')
-    console.log(newScaleX.domain())
-
-    console.log('newScaleY.domain()')
-    console.log(newScaleY.domain())
-
+    // apply transform to x and y scales
+    const newScaleX = tr.rescaleX(profile.xScale).interpolate(d3.interpolateRound)
+    const newScaleY = tr.rescaleY(profile.yScale).interpolate(d3.interpolateRound)
     const newXDomain = newScaleX.domain()
     const newYDomain = newScaleY.domain()
 
     profile.bbox = { xmin: newXDomain[0], xmax: newXDomain[1], ymin: newYDomain[0], ymax: newYDomain[1] }
 
-    console.log(profile.filteredData)
-
-    // profile.updateLine()
+    console.log(`Profile bounding box:`)
+    console.log(profile.bbox)
 
     profile.updatePlot()
-
-    // rescale x and y axes using the current zoom transform
-    d3.select('svg').select('#svg-x-axis').call(profile.xAxis.scale(newScaleX))
-    d3.select('svg').select('#svg-y-axis').call(profile.yAxis.scale(newScaleY))
-
-    // rescale line
-    var line2 = d3.line()
-        .x(d => newScaleX(d[0]))
-        .y(d => newScaleY(d[1]))
-
-    console.log(`d3.select('#svg-dataline')`)
-    console.log(d3.select('#svg-dataline'))
-
-    d3.select('#svg-dataline')
-        .attr("d", line2(profile.data))
-
-
-
-    // zoom.scaleTo(d3.select('svg'), 2)
-    // call(zoom).call(zoom.scaleTo, 0, 7)
-
-    // d3.select('svg').select('#svg-dataline').call(zoom.transform, d3.zoomIdentity)
-
-    // Geometric zoom (this does not re-render the line)
-    // d3.select('svg').select('#svg-dataline').attr("transform", tr)
-    // console.log(d3.select('svg').select('#svg-dataline').attr("d"))
-
-    /*
-    d3.select('svg').select('#svg-dataline')
-        .attr("d",
-            d3.line()
-                .x(d => newScaleX(d[0]))
-                .y(d => newScaleY(d[1]))
-        )
-    */
-
-
-    /*
-    d3.line()
-    .x(d => this.xScale(d[0]))
-    .y(d => this.yScale(d[1]))
-*/
-
-    // profile.updateLine()
-    // profile.updatePlot()
-
-    // d3.select('svg').select('#svg-x-grid').call(profile.xAxis.scale(newScaleY))
-    // d3.select('svg').select('#svg-y-grid').call(profile.yAxis.scale(newScaleY))
-
 
 }
 
@@ -428,7 +416,7 @@ function initZoom() {
 }
 
 function resetZoom() {
-    svg.transition()
+    d3.select('svg').transition()
         .duration(750)
         .call(zoom.transform, d3.zoomIdentity);
 }
@@ -440,10 +428,76 @@ window.addEventListener('resize', function () {
 })
 
 /* MAP GEOTIFF SOURCE */
+const sources = [
+    new GeoTIFF({
+        normalize: false,
+        interpolate: false,
+        sources: [{
+            name: 'DHM 2001',
+            date: "01.06.2001",
+            url: 'data/dhm_2001.cog.tif',
+            bands: [1]
+        }]
+    }),
+    new GeoTIFF({
+        normalize: false,
+        interpolate: false,
+        sources: [{
+            name: 'DHM 2010',
+            date: "15.06.2010",
+            url: 'data/dhm_2010.cog.tif',
+            bands: [1]
+        }]
+    }),
+    new GeoTIFF({
+        normalize: false,
+        interpolate: false,
+        sources: [{
+            name: 'DHM 2016',
+            date: "01.05.2016",
+            url: 'data/dhm_2016.cog.tif',
+            bands: [1]
+        }]
+    }),
+    new GeoTIFF({
+        normalize: false,
+        interpolate: false,
+        sources: [{
+            name: 'DHM 2019',
+            date: "01.01.2019",
+            url: 'data/dhm_2019.cog.tif',
+            bands: [1]
+        }]
+    }),
+    new GeoTIFF({
+        normalize: false,
+        interpolate: false,
+        sources: [{
+            name: 'DHM 2022',
+            date: "01.01.2022",
+            url: 'data/dhm_2022.cog.tif',
+            bands: [1]
+        }]
+    }),
+    new GeoTIFF({
+        normalize: false,
+        interpolate: false,
+        sources: [{
+            name: 'DHM 2023',
+            date: "01.01.2023",
+            url: 'data/dhm_2023.cog.tif',
+            bands: [1]
+        }]
+    }),
+]
+
+
+
 const source = new GeoTIFF({
     normalize: false,
     interpolate: false,
     sources: [
+        /*
         {
             name: 'DHM 2001',
             date: "01.06.2001",
@@ -468,13 +522,13 @@ const source = new GeoTIFF({
             url: 'data/dhm_2019.cog.tif',
             bands: [1]
         },
-
         {
             name: 'DHM 2022',
             date: "01.01.2022",
             url: 'data/dhm_2022.cog.tif',
             bands: [1]
         },
+        */
         {
             name: 'DHM 2023',
             date: "01.01.2023",
@@ -492,11 +546,14 @@ function update() {
     layerIndex = parseInt(document.getElementById("layer-selector").value)
 
     // update raster layer
-    raster.updateStyleVariables({ bandno: layerIndex + 1 })
+    raster.setSource(sources[layerIndex])
+    raster.changed()
+    raster.updateStyleVariables({ bandno: 1 })
 
     // update profile layer
-    shiftProfile()
+    translateProfile()
     // drawProfile(feature)
+
 }
 
 var select = document.getElementById("layer-selector")
@@ -504,14 +561,23 @@ var select = document.getElementById("layer-selector")
 // LAYER SELECTOR EVENT LISTENER
 select.addEventListener('change', update)
 
-source.sourceInfo_.forEach((element, index) => {
+
+document.getElementById("draw-profile-btn").addEventListener('click', addInteractions)
+document.getElementById("reset-zoom-btn").addEventListener('click', resetZoom)
+
+
+// POPULATATE LAYER SELECTOR OPTIONS
+sources.forEach((element, index) => {
+    // console.log(element)
+    // console.log(element.sourceInfo_[0].name)
+    // console.log(index)
     var option = document.createElement("option")
-    option.text = element.name
+    option.text = element.sourceInfo_[0].name
     option.value = index
     select.add(option)
 })
 
-/* VECTOR LAYER */
+/* MAP - PROFILE LINESTRING VECTOR LAYER */
 const vsource = new VectorSource()
 const vector = new VectorLayer({
     source: vsource,
@@ -523,6 +589,28 @@ const vector = new VectorLayer({
         'circle-fill-color': '#ffcc33',
     },
 })
+
+/* MAP - POINTS VECTOR LAYER */
+const points = []
+
+const pointsSource = new VectorSource({
+    features: points,
+    wrapX: false,
+})
+
+const pointsLayer = new VectorLayer({
+    source: pointsSource,
+    style: {
+        // 'fill-color': 'rgba(255, 255, 255, 0.2)',
+        // 'stroke-color': '#ffffff',
+        // 'stroke-width': 4,
+        'circle-radius': 7,
+        'circle-fill-color': '#9932CC',
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-width': 2,
+    },
+})
+
 
 /* TILE LAYER */
 const raster = new TileLayer({
@@ -556,20 +644,66 @@ const raster = new TileLayer({
             [255, 255, 255]
         ],
     },
-    source: source,
+    source: sources[0] //source,
 })
+
+
+
+/* MAP: CUSTOM CONTROLS */
+class RotateNorthControl extends Control {
+    /**
+     * @param {Object} [opt_options] Control options.
+     */
+    constructor(opt_options) {
+        const options = opt_options || {}
+
+        const button = document.createElement('button')
+        button.innerHTML = 'P';
+
+        const element = document.createElement('div')
+        element.className = 'rotate-north ol-unselectable ol-control'
+        element.appendChild(button);
+
+        super({
+            element: element,
+            target: options.target,
+        });
+
+        button.addEventListener('click', addInteractions)
+        // button.addEventListener('click', this.handleRotateNorth.bind(this), false)
+    }
+
+    /*
+    handleRotateNorth() {
+        this.getMap().getView().setRotation(0);
+    }
+    */
+
+}
 
 /* MAP */
 const map = new Map({
+    controls: defaultControls().extend([new RotateNorthControl()]),
     target: 'map',
-    layers: [raster, vector],
-    view: source.getView().then(function (options) {
+    layers: [raster, vector, pointsLayer],
+    view: sources[layerIndex].getView().then(function (options) {
         return {
             projection: options.projection,
             center: options.center,
             resolution: options.resolutions[options.zoom],
         }
     }),
+    interactions: [
+        new DragRotate,
+        // new DoubleClickZoom,
+        new DragPan,
+        new PinchRotate,
+        new PinchZoom,
+        new KeyboardPan,
+        new KeyboardZoom,
+        new DragZoom,
+        new MouseWheelZoom,
+    ],
     // view, // source.getView(),
 })
 
@@ -579,33 +713,51 @@ const map = new Map({
 // const modify = new Modify({ source: vsource })
 // map.addInteraction(modify)
 
-let draw, snap;
+let draw, snap; // global so we can remove them later
 
 function addInteractions() {
+
     draw = new Draw({
         source: vsource,
         type: 'LineString', // typeSelect.value,
         freehand: false,
     })
 
+    // clear previous features 
     draw.on(['drawstart'], x => {
         console.log('drawstart')
-        // clear features
-        vsource.clear()
 
+        vsource.clear()
     })
-    draw.on(['drawend'], e => drawProfile(e.feature))
+
+    // draw profile
+    draw.on(['drawend'],
+        event => {
+
+            // draw profile
+            drawProfile(event.feature)
+
+            // remove draw interaction
+            map.removeInteraction(draw)
+            map.removeInteraction(snap)
+        }
+    )
 
     map.addInteraction(draw)
     snap = new Snap({ source: vsource })
     map.addInteraction(snap)
 }
 
-addInteractions()
+// addInteractions()
+// map.removeInteraction(draw)
+// map.removeInteraction(snap)
+
+// TOGGLE INTERACTIONS
+// interactions = { draw: false, snap: false }
 
 
 // MODIFY FEATURE GEOMETRY
-function shiftProfile(shift = [0.0, 0.0]) {
+function translateProfile(shift = [0.0, 0.0]) {
 
     let featureList = vsource.getFeatures()
 
@@ -651,10 +803,10 @@ function getLinearCoordinates(xy) {
     }
 } */
 
-function interpolateLinestring(feature) {
+function interpolateLinestring(geom) {
 
     let dl = 0.5
-    let L = feature.getLength()
+    let L = geom.getLength()
 
     let f = dl / L
     let n = Math.floor(1 / f)
@@ -664,7 +816,7 @@ function interpolateLinestring(feature) {
 
     let coords = Array(n)
     for (let i = 0; i < n; i++) {
-        coords[i] = feature.getCoordinateAt(i * f)
+        coords[i] = geom.getCoordinateAt(i * f)
     }
 
     /*
@@ -687,12 +839,15 @@ function getValuesAtCoordinates(coordinates) {
 
     for (const [i, xy] of coordinates.entries()) {
         cr = map.getPixelFromCoordinate(xy)
-        data[i] = raster.getData(cr)[layerIndex]
+        data[i] = raster.getData(cr)[0] //[layerIndex]
     }
 
+    console.log(data)
     return data
 
 }
+
+
 
 function drawProfile(feature, shift = [0.0, 0.0]) {
 

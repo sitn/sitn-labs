@@ -21,6 +21,15 @@
         </div>
         <div class="grid-cell">
 
+            <div id="controls" class="controls">
+                <div style="padding: 20px;">
+                    <button id="draw-profile-btn">Draw Profile</button>
+                    <button id="reset-zoom-btn">Reset zoom</button>
+                    <button id="download-geojson-btn">Download (geojson)</button>
+                </div>
+            </div>
+
+
             <div id="chart" class="chart">
 
                 <svg id="svg-chart">
@@ -33,12 +42,15 @@
                             </circle>
                         </marker>
 
-                        <!-- CLIP ZONE -->
+                        <!-- CLIP AREA -->
                         <clipPath id="clip">
                             <rect id="clipRegion" width="200" height="250" x="50" y="0"></rect>
                         </clipPath>
 
                     </defs>
+
+                    <!-- PLOT AREA -->
+                    <rect id="svg-body" width="400" height="250" x="85" y="0" fill="#F0FFFF" cursor="crosshair"></rect>
 
                     <!-- X-AXIS -->
                     <g id="svg-x-axis" transform="translate(0, 320)" fill="none" font-size="10" font-family="sans-serif" text-anchor="middle">
@@ -51,11 +63,11 @@
                     </g>
 
                     <!-- X-AXIS GRID -->
-                    <g id="svg-x-grid" class="x axis-grid" stroke-width="1" stroke="#ddeeff" fill="none" stroke-opacity="0.1" transform="translate(0, 320)" font-size="10" font-family="sans-serif" text-anchor="middle">
+                    <g id="svg-x-grid" class="x axis-grid" pointer-events="none" stroke-width="1" stroke="#ddeeff" fill="none" stroke-opacity="0.1" transform="translate(0, 320)" font-size="10" font-family="sans-serif" text-anchor="middle">
                     </g>
 
                     <!-- Y-AXIS GRID -->
-                    <g id="svg-y-grid" class="y axis-grid" stroke-width="1" stroke="#ddeeff" fill="none" stroke-opacity="0.1" transform="translate(60, 0)" font-size="10" font-family="sans-serif" text-anchor="end">
+                    <g id="svg-y-grid" class="y axis-grid" pointer-events="none" stroke-width="1" stroke="#ddeeff" fill="none" stroke-opacity="0.1" transform="translate(60, 0)" font-size="10" font-family="sans-serif" text-anchor="end">
                     </g>
 
                     <!-- DATE LINE -->
@@ -63,11 +75,14 @@
 
                     <!-- DATA CURVE -->
                     <!-- <path id="svg-dataline" class="line" transform="" d="" marker-start="url(#dot)" marker-mid="url(#dot)" marker-end="url(#dot)" style="fill: none; stroke: rgb(204, 0, 0); stroke-width: 2;"></path> -->
-                    <path id="svg-dataline" class="line" transform="" d="" clip-path="url(#clip)" style="fill: none; stroke: rgb(204, 0, 0); stroke-width: 2;"></path>
+                    <path id="svg-dataline" class="line" pointer-events="none" transform="" d="" clip-path="url(#clip)" style="fill: none; stroke: rgb(204, 0, 0); stroke-width: 2;"></path>
                     <!-- Add clip path -->
 
                 </svg>
+
             </div>
+
+
         </div>
     </div>
 
