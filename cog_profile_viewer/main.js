@@ -545,13 +545,34 @@ function update() {
 
     layerIndex = parseInt(document.getElementById("layer-selector").value)
 
+    /*
+    map.on('loadend', (event) => {
+        console.log('layer render complete')
+        translateProfile()
+    })
+    */
+
+    raster.once('change', (event) => {
+        console.log('layer render complete')
+        translateProfile()
+    })
+
     // update raster layer
     raster.setSource(sources[layerIndex])
     raster.changed()
     raster.updateStyleVariables({ bandno: 1 })
 
+    raster.dispatchEvent('didi')
+
+    /*
+    raster.once('rendercomplete', (event) => {
+        console.log('layer render complete')
+        translateProfile()
+    })
+    */
+
     // update profile layer
-    translateProfile()
+    // translateProfile()
     // drawProfile(feature)
 
 }
@@ -648,7 +669,6 @@ const raster = new TileLayer({
 })
 
 
-
 /* MAP: CUSTOM CONTROLS */
 class RotateNorthControl extends Control {
     /**
@@ -670,14 +690,7 @@ class RotateNorthControl extends Control {
         });
 
         button.addEventListener('click', addInteractions)
-        // button.addEventListener('click', this.handleRotateNorth.bind(this), false)
     }
-
-    /*
-    handleRotateNorth() {
-        this.getMap().getView().setRotation(0);
-    }
-    */
 
 }
 
